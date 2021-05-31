@@ -1,10 +1,16 @@
 import torch
 from torch import nn
 from ssim import MS_SSIM
+
+class manhattan_metric(nn.Module):
+    def forward(self, x, y):
+        n, c, w, h = x.shape
+        out = torch.abs(x.view(n, -1) - y.view(n, -1)).sum(1)
+        return out.mean()
 class mix_loss(nn.Module):
     def __init__(self):
         super(mix_loss, self).__init__()
-        self.l1 = nn.L1Loss()
+        self.l1 = nn.SmoothL1Loss()
         self.ms_ssim = MS_SSIM(data_range=1.0, channel=3)
 
     def forward(self, x, y):
