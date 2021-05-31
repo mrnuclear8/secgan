@@ -19,7 +19,7 @@ from datasets import *
 from utils import *
 from ssim import MS_SSIM
 from hinet import HINet
-from mix_loss import mix_loss, MS_SSIM_L1_LOSS
+from mix_loss import mix_loss, MS_SSIM_L1_LOSS, manhattan_metric
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -28,7 +28,7 @@ import torch
 parser = argparse.ArgumentParser()
 parser.add_argument("--epoch", type=int, default=0, help="epoch to start training from")
 parser.add_argument("--n_epochs", type=int, default=100, help="number of epochs of training")
-parser.add_argument("--dataset_name", type=str, default="cartoonCity_MS-SSIM_hinet_l1B_directImg", help="name of the dataset")
+parser.add_argument("--dataset_name", type=str, default="cartoonCity_hinet_subnetDirec_key", help="name of the dataset")
 parser.add_argument("--batch_size", type=int, default=1, help="size of the batches")
 parser.add_argument("--lr", type=float, default=0.00001, help="adam: learning rate")
 parser.add_argument("--b1", type=float, default=0.5, help="adam: decay of first order momentum of gradient")
@@ -53,7 +53,8 @@ criterion_GAN = torch.nn.MSELoss()
 # criterion_cycle = torch.nn.L1Loss()
 # criterion_cycle = MS_SSIM(data_range=1.0, channel=3)
 criterion_cycle = mix_loss()
-criterion_cycle2 = torch.nn.L1Loss()
+criterion_cycle2 = torch.nn.SmoothL1Loss()
+criterion_key = manhattan_metric()
 
 # criterion_identity = torch.nn.L1Loss()
 
@@ -63,8 +64,8 @@ input_shape = (opt.channels, opt.img_height, opt.img_width)
 
 # G_AB = GeneratorResNet(input_shape, opt.n_residual_blocks)
 # G_BA = GeneratorResNet(input_shape, opt.n_residual_blocks)
-G_AB = HINet()
-G_BA = HINet()
+G_AB = HINet(in_chn=4, out_chn=3)
+G_BA = HINet(in_chn=3, out_chn=4)
 D_A = Discriminator(input_shape)
 D_B = Discriminator(input_shape)
 
@@ -88,8 +89,8 @@ else:
     # Initialize weights
     # G_AB.apply(weights_init_normal)
     # G_BA.apply(weights_init_normal)
-    # G_AB._initialize()
-    # G_BA._initialize()
+    G_AB._initialize()
+    G_BA._initialize()
     D_A.apply(weights_init_normal)
     D_B.apply(weights_init_normal)
 
@@ -161,7 +162,7 @@ def sample_images(batches_done):
     fake_B = make_grid(fake_B, nrow=5, normalize=True)
     cycle_A = make_grid(cycle_A, nrow=5, normalize=True)
     # Arange images along y-axis
-    image_grid = torch.cat((real_A, fake_B, cycle_A, real_B, fake_A), 1)
+    image_grid = torch.cat((real_A[:3,:,:], fake_B, cycle_A[:3,:,:], real_B, fake_A[:3,:,:]), 1)
     save_image(image_grid, "images/%s/%s.png" % (opt.dataset_name, batches_done), normalize=False)
 
 
@@ -174,8 +175,8 @@ for epoch in range(opt.epoch, opt.n_epochs):
         real_A = Variable(batch["A"].type(Tensor))
         real_B = Variable(batch["B"].type(Tensor))
 
-        valid = Variable(Tensor(np.ones((real_A.size(0) * 2, *D_A.output_shape))), requires_grad=False)
-        fake = Variable(Tensor(np.zeros((real_A.size(0) * 2, *D_A.output_shape))), requires_grad=False)
+        valid = Variable(Tensor(np.ones((real_A.size(0), *D_A.output_shape))), requires_grad=False)
+        fake = Variable(Tensor(np.zeros((real_A.size(0), *D_A.output_shape))), requires_grad=False)
 
 
         G_AB.train()
@@ -190,27 +191,27 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_identity = 0
 
         fake_B = G_AB(real_A)
-        loss_GAN_AB = criterion_GAN(D_B(torch.cat(fake_B, dim=0)), valid)
-        fake_B = fake_B[1]
+        loss_GAN_AB = criterion_GAN(D_B(fake_B[1]), valid)
         # fake_A = G_BA(real_B)
-        recov_A = G_BA(fake_B)
+        recov_A = G_BA(fake_B[1])
 
         # loss_GAN_BA = criterion_GAN(D_A(fake_A), valid)
-        loss_GAN_BA = criterion_GAN(D_A(torch.cat(recov_A, dim=0)), valid)
-        recov_A = recov_A[1]
+        loss_GAN_BA = criterion_GAN(D_A(recov_A[1][:,:3,:,:]), valid)
 
         loss_GAN = (loss_GAN_AB + loss_GAN_BA) / 2
         # loss_GAN = loss_GAN_AB
 
         # recov_A = G_BA(fake_B)
-        loss_cycle_A = criterion_cycle(recov_A, real_A)
-        recov_B = G_AB(recov_A)[1]
-        loss_cycle_B = criterion_cycle2(recov_B, fake_B)
+        loss_cycle_A = criterion_cycle(recov_A[1][:,:3,:,:], real_A[:,:3,:,:]) + 0.1 * criterion_cycle2(recov_A[0], real_A[:,:3,:,:])
+        recov_B = G_AB(recov_A[1])
+        loss_cycle_B = criterion_cycle2(recov_B[1], fake_B[1]) + 0.1 * criterion_cycle2(recov_B[0], fake_B[0])
 
         loss_cycle = 0.75 * loss_cycle_A + 0.25 * loss_cycle_B
         # loss_cycle = loss_cycle_A
 
-        loss_G = loss_GAN + opt.lambda_cyc * loss_cycle + opt.lambda_id * loss_identity
+        #Key loss
+        loss_key = criterion_key(recov_A[1][:,3:,:,:], real_A[:,3:,:,:])
+        loss_G = loss_GAN + opt.lambda_cyc * loss_cycle + opt.lambda_id * loss_identity + 0.0001 * loss_key
 
         loss_G.backward()
         optimizer_G.step()
@@ -219,10 +220,10 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_D_A.zero_grad()
 
         # Real loss
-        loss_real = criterion_GAN(D_A(real_A), valid[:8])
+        loss_real = criterion_GAN(D_A(real_A[:,:3,:,:]), valid)
         # Fake loss (on batch of previously generated samples)
-        fake_A_ = fake_A_buffer.push_and_pop(recov_A)
-        loss_fake = criterion_GAN(D_A(fake_A_.detach()), fake[:8])
+        fake_A_ = fake_A_buffer.push_and_pop(recov_A[1][:,:3,:,:])
+        loss_fake = criterion_GAN(D_A(fake_A_.detach()), fake)
         # Total loss
         loss_D_A = (loss_real + loss_fake) / 2
 
@@ -232,10 +233,10 @@ for epoch in range(opt.epoch, opt.n_epochs):
         optimizer_D_B.zero_grad()
 
         # Real loss
-        loss_real = criterion_GAN(D_B(real_B), valid[:8])
+        loss_real = criterion_GAN(D_B(real_B), valid)
         # Fake loss (on batch of previously generated samples)
-        fake_B_ = fake_B_buffer.push_and_pop(fake_B)
-        loss_fake = criterion_GAN(D_B(fake_B_.detach()), fake[:8])
+        fake_B_ = fake_B_buffer.push_and_pop(fake_B[1])
+        loss_fake = criterion_GAN(D_B(fake_B_.detach()), fake)
         # Total loss
         loss_D_B = (loss_real + loss_fake) / 2
 
@@ -254,7 +255,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
 
         # Print log
         sys.stdout.write(
-            "\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, adv: %f, cycle: %f, identity: %f] ETA: %s"
+            "\r[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f, adv: %f, cycle: %f, key: %f] ETA: %s"
             % (
                 epoch,
                 opt.n_epochs,
@@ -265,7 +266,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
                 loss_GAN.item(),
                 loss_cycle.item(),
                 # loss_identity.item(),
-                loss_identity,
+                loss_key.item(),
                 time_left,
             )
         )

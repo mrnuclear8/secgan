@@ -1,7 +1,7 @@
 import glob
 import random
 import os
-
+import torch
 from torch.utils.data import Dataset
 from PIL import Image
 import torchvision.transforms as transforms
@@ -17,7 +17,7 @@ class ImageDataset(Dataset):
     def __init__(self, root, transforms_=None, unaligned=False, mode="train"):
         self.transform = transforms.Compose(transforms_)
         self.unaligned = unaligned
-
+        self.key = torch.randn([1, 256, 256])
         self.files_A = sorted(glob.glob(os.path.join(root, "%sA" % mode) + "/*.*"))
         self.files_B = sorted(glob.glob(os.path.join(root, "%sB" % mode) + "/*.*"))
     def __getitem__(self, index):
@@ -35,6 +35,7 @@ class ImageDataset(Dataset):
             image_B = to_rgb(image_B)
 
         item_A = self.transform(image_A)
+        item_A = torch.cat([item_A, self.key], dim=0)
         item_B = self.transform(image_B)
         return {"A": item_A, "B": item_B}
 

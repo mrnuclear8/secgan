@@ -25,7 +25,7 @@ class SAM(nn.Module):
 
     def forward(self, x, x_img):
         x1 = self.conv1(x)
-        img = self.conv2(x) + x_img
+        img = self.conv2(x) + x_img[:,:3,:,:]
         x2 = torch.sigmoid(self.conv3(img))
         x1 = x1*x2
         x1 = x1+x
@@ -33,7 +33,7 @@ class SAM(nn.Module):
 
 class HINet(nn.Module):
 
-    def __init__(self, in_chn=3, wf=64, depth=5, relu_slope=0.2, hin_position_left=0, hin_position_right=4):
+    def __init__(self, in_chn=3, out_chn=3, wf=64, depth=5, relu_slope=0.2, hin_position_left=0, hin_position_right=4):
         super(HINet, self).__init__()
         self.depth = depth
         self.down_path_1 = nn.ModuleList()
@@ -62,7 +62,7 @@ class HINet(nn.Module):
         self.sam12 = SAM(prev_channels)
         self.cat12 = nn.Conv2d(prev_channels*2, prev_channels, 1, 1, 0)
 
-        self.last = conv3x3(prev_channels, in_chn, bias=True)
+        self.last = conv3x3(prev_channels, out_chn, bias=True)
 
     def forward(self, x):
         image = x
@@ -97,7 +97,7 @@ class HINet(nn.Module):
             x2 = up(x2, self.skip_conv_2[i](blocks[-i-1]))
 
         out_2 = self.last(x2)
-        out_2 = out_2 + image
+        # out_2 = out_2 + image
         return [out_1, out_2]
 
     def get_input_chn(self, in_chn):
