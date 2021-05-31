@@ -89,8 +89,8 @@ else:
     # Initialize weights
     # G_AB.apply(weights_init_normal)
     # G_BA.apply(weights_init_normal)
-    G_AB._initialize()
-    G_BA._initialize()
+    # G_AB._initialize()
+    # G_BA._initialize()
     D_A.apply(weights_init_normal)
     D_B.apply(weights_init_normal)
 
@@ -131,8 +131,8 @@ transforms_ = [
 dataloader = DataLoader(
     dataset=ImageDataset("./rawdataset", transforms_=transforms_, unaligned=True),
     batch_size=8,
-    shuffle=False,
-    num_workers=16,
+    shuffle=True,
+    num_workers=10,
     drop_last=True,
 )
 # Test data loader
@@ -140,7 +140,7 @@ val_dataloader = DataLoader(
     dataset=ImageDataset("./rawdataset", transforms_=transforms_, unaligned=True, mode="test"),
     batch_size=5,
     shuffle=True,
-    num_workers=16,
+    num_workers=10,
     drop_last=True,
 )
 
