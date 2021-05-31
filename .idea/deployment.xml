@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="ubuntu@106.54.73.96:22" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="ubuntu@106.52.139.25:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/ubuntu/secGan" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="ubuntu@106.52.249.121:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/pycharm_project_78" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="ubuntu@106.54.73.96:22">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/ubuntu/secGan" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
