@@ -126,7 +126,7 @@ class Discriminator(nn.Module):
         channels, height, width = input_shape
 
         # Calculate output shape of image discriminator (PatchGAN)
-        self.output_shape = (1, height // 2 ** 8, width // 2 ** 8)
+        self.output_shape = (1, height // 2 ** 5, width // 2 ** 5)
 
         def discriminator_block(in_filters, out_filters, normalize=True):
             """Returns downsampling layers of each discriminator block"""
@@ -134,7 +134,9 @@ class Discriminator(nn.Module):
             if normalize:
                 layers.append(nn.InstanceNorm2d(out_filters))
             layers.append(nn.LeakyReLU(0.2, inplace=True))
-
+            layers.append(nn.Conv2d(out_filters, out_filters, 3, stride=1, padding=1))
+            layers.append(nn.InstanceNorm2d(out_filters))
+            layers.append(nn.LeakyReLU(0.2, inplace=True))
             return layers
 
         self.model = nn.Sequential(
