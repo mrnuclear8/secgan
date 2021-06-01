@@ -7,7 +7,7 @@ def conv3x3(in_chn, out_chn, bias=True):
     return layer
 
 def conv_down(in_chn, out_chn, bias=False):
-    layer = nn.Conv2d(in_chn, out_chn, kernel_size=4, stride=2, padding=1, bias=bias)
+    layer = nn.Conv2d(in_chn, out_chn, kernel_size=3, stride=2, padding=1, bias=bias)
     return layer
 
 def conv(in_channels, out_channels, kernel_size, bias=False, stride = 1):

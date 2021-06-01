@@ -182,7 +182,6 @@ for epoch in range(opt.epoch, opt.n_epochs):
         G_AB.train()
         G_BA.train()
 
-        optimizer_G.zero_grad()
 
         # loss_id_A = criterion_identity(G_BA(real_A), real_A)
         # loss_id_B = criterion_identity(G_AB(real_B), real_B)
@@ -217,6 +216,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_G = loss_GAN + opt.lambda_cyc * loss_cycle + opt.lambda_id * loss_identity + 0.0001 * loss_key
 
         loss_G.backward()
+        nn.utils.clip_grad_norm_(G_AB.parameters(), max_norm=10.)
+        nn.utils.clip_grad_norm_(G_BA.parameters(), max_norm=10.)
+
         optimizer_G.step()
 
 

@@ -10,7 +10,7 @@ class manhattan_metric(nn.Module):
 class mix_loss(nn.Module):
     def __init__(self):
         super(mix_loss, self).__init__()
-        self.l1 = nn.SmoothL1Loss()
+        self.l1 = nn.L1Loss()
         self.ms_ssim = MS_SSIM(data_range=1.0, channel=3)
 
     def forward(self, x, y):
