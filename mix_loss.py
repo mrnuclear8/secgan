@@ -105,3 +105,14 @@ class MS_SSIM_L1_LOSS(nn.Module):
         loss_mix = self.compensation*loss_mix
 
         return loss_mix.mean()
+
+if __name__ == "__main__":
+    x = torch.rand([1, 1, 2, 2])
+    y = torch.rand([1, 1, 2, 2])
+    loss = manhattan_metric()
+    print(x)
+    print(y)
+    print(loss(x, y))
+    x = torch.cat([x, x], dim=0)
+    y = torch.cat([y, y], dim=0)
+    print(loss(x, y))

@@ -129,7 +129,7 @@ transforms_ = [
 
 # Training data loader
 dataloader = DataLoader(
-    dataset=ImageDataset("./rawdataset", transforms_=transforms_, unaligned=True),
+    dataset=ImageDataset("./rawdataset", transforms_=transforms_, unaligned=False),
     batch_size=8,
     shuffle=True,
     num_workers=10,
@@ -137,7 +137,7 @@ dataloader = DataLoader(
 )
 # Test data loader
 val_dataloader = DataLoader(
-    dataset=ImageDataset("./rawdataset", transforms_=transforms_, unaligned=True, mode="test"),
+    dataset=ImageDataset("./rawdataset", transforms_=transforms_, unaligned=False, mode="test"),
     batch_size=5,
     shuffle=True,
     num_workers=10,
@@ -156,13 +156,13 @@ def sample_images(batches_done):
     fake_A = G_BA(real_B)[1]
     cycle_A = G_BA(fake_B)[1]
     # Arange images along x-axis
-    real_A = make_grid(real_A, nrow=5, normalize=True)
+    real_A = make_grid(real_A[:,:3,:,:], nrow=5, normalize=True)
     real_B = make_grid(real_B, nrow=5, normalize=True)
-    fake_A = make_grid(fake_A, nrow=5, normalize=True)
+    fake_A = make_grid(fake_A[:,:3,:,:], nrow=5, normalize=True)
     fake_B = make_grid(fake_B, nrow=5, normalize=True)
-    cycle_A = make_grid(cycle_A, nrow=5, normalize=True)
+    cycle_A = make_grid(cycle_A[:,:3,:,:], nrow=5, normalize=True)
     # Arange images along y-axis
-    image_grid = torch.cat((real_A[:3,:,:], fake_B, cycle_A[:3,:,:], real_B, fake_A[:3,:,:]), 1)
+    image_grid = torch.cat((real_A, fake_B, cycle_A, real_B, fake_A), 1)
     save_image(image_grid, "images/%s/%s.png" % (opt.dataset_name, batches_done), normalize=False)
 
 
@@ -191,7 +191,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_identity = 0
 
         fake_B = G_AB(real_A)
-        loss_GAN_AB = criterion_GAN(D_B(fake_B[1]), valid)
+        loss_GAN_AB = criterion_GAN(D_B(fake_B[1]), valid) + 0.1 * criterion_cycle2(fake_B[1], real_B) + 0.1 * criterion_cycle2(fake_B[0], real_B)
         # fake_A = G_BA(real_B)
         recov_A = G_BA(fake_B[1])
 
@@ -204,7 +204,10 @@ for epoch in range(opt.epoch, opt.n_epochs):
         # recov_A = G_BA(fake_B)
         loss_cycle_A = criterion_cycle(recov_A[1][:,:3,:,:], real_A[:,:3,:,:]) + 0.1 * criterion_cycle2(recov_A[0], real_A[:,:3,:,:])
         recov_B = G_AB(recov_A[1])
-        loss_cycle_B = criterion_cycle2(recov_B[1], fake_B[1]) + 0.1 * criterion_cycle2(recov_B[0], fake_B[0])
+        # loss_cycle_B_real = criterion_cycle2(recov_B[1], real_B) + 0.1 * criterion_cycle2(recov_B[0], real_B)
+        loss_cycle_B_real = 0
+        loss_cycle_B_fake = criterion_cycle2(recov_B[1], fake_B[1]) + 0.1 * criterion_cycle2(recov_B[0], fake_B[1])
+        loss_cycle_B = (loss_cycle_B_real + loss_cycle_B_fake) / 2
 
         loss_cycle = 0.75 * loss_cycle_A + 0.25 * loss_cycle_B
         # loss_cycle = loss_cycle_A
