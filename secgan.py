@@ -120,9 +120,9 @@ fake_B_buffer = ReplayBuffer()
 
 # Image transformations
 transforms_ = [
-    # transforms.Resize(int(opt.img_height * 1.12), Image.BICUBIC),
-    transforms.RandomCrop((opt.img_height, opt.img_width)),
-    transforms.RandomHorizontalFlip(),
+    transforms.Resize([720, 1440], Image.BICUBIC),
+    # transforms.RandomCrop((opt.img_height, opt.img_width)),
+    # transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 ]
@@ -190,7 +190,7 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_identity = 0
 
         fake_B = G_AB(real_A)
-        loss_GAN_AB = criterion_GAN(D_B(fake_B[1]), valid) + 0.1 * criterion_cycle2(fake_B[1], real_B) + 0.1 * criterion_cycle2(fake_B[0], real_B)
+        loss_GAN_AB = criterion_GAN(D_B(fake_B[1]), valid) + criterion_cycle2(fake_B[1], real_B) + 0.1 * criterion_cycle2(fake_B[0], real_B)
         # fake_A = G_BA(real_B)
         recov_A = G_BA(fake_B[1])
 
@@ -208,7 +208,9 @@ for epoch in range(opt.epoch, opt.n_epochs):
         loss_cycle_B_fake = criterion_cycle2(recov_B[1], fake_B[1]) + 0.1 * criterion_cycle2(recov_B[0], fake_B[1])
         loss_cycle_B = (loss_cycle_B_real + loss_cycle_B_fake) / 2
 
-        loss_cycle = 0.75 * loss_cycle_A + 0.25 * loss_cycle_B
+        # loss_cycle = 0.75 * loss_cycle_A + 0.25 * loss_cycle_B
+        loss_cycle = (loss_cycle_A + loss_cycle_B) / 2
+
         # loss_cycle = loss_cycle_A
 
         #Key loss
